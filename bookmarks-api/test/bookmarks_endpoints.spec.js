@@ -303,28 +303,99 @@ describe('Bookmarks Endpoints', function() {
       });
     });
     
-    const testBookmarks = makeBookmarksArray();
+    context('Given bookmarks in database', () => {
+      const testBookmarks = makeBookmarksArray();
 
-    beforeEach('insert bookmarks', () => {
-      return db
-        .into('bookmarks')
-        .insert(testBookmarks);
-    });
+      beforeEach('insert bookmarks', () => {
+        return db
+          .into('bookmarks')
+          .insert(testBookmarks);
+      });
 
-    it(`should respond with a 400 when ID isn't supplied as a URL query`, () => {
+      it('should respond with a 400 when no required fields supplied', () => {
+        const idToUpdate = 2;
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send({ irrelavantField: 'foo' })
+          .expect(400, 'Request body must contain either "title", "url", "description" or "rating"');
+      });
 
-    });
-    it(`should respond with a 204 and no content when successful`, () => {
+      it('should respond with a 204 and updates bookmark when successful', () => {
+        const idToUpdate = 2;
+        const newBookmark = {
+          title: 'updated bookmark',
+          url: 'https://updated-url.com',
+          description: 'bookmark has been updated',
+          rating: 1
+        };
+        const expectedBookmark = {
+          ...testBookmarks[idToUpdate - 1],
+          ...newBookmark
+        }
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send(newBookmark)
+          .expect(204)
+          .then(res => {
+            return supertest(app)
+              .get(`/api/bookmarks/${idToUpdate}`)
+              .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+              .expect(expectedBookmark);
+          });
+      });
 
-    });
-    it(`updates the bookmark in your database table`, () => {
+      it('responds with 204 when updating only a subset of fields', () => {
+        const idToUpdate = 2;
+        const newBookmark = {
+          title: 'updated bookmark title'
+        };
+        const expectedBookmark = {
+          ...testBookmarks[idToUpdate - 1],
+          ...newBookmark
+        };
 
-    });
-    it(`should respond with a 400 when no values are supplied for any fields`, () => {
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send({
+            ...newBookmark,
+            fieldToIgnore: 'should not be in GET response'
+          })
+          .expect(204)
+          .then(res => {
+            return supertest(app)
+              .get(`/api/bookmarks/${idToUpdate}`)
+              .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+              .expect(expectedBookmark);
+          });
+      });
 
-    });
-    it(`should allow partial updates`, () => {
+      it('responds with 400 invalid "rating" if not between 0 and 5', () => {
+        const idToUpdate = 2;
+        const updateInvalidRating = {
+          rating: 'invalid'
+        }
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send(updateInvalidRating)
+          .expect(400, '"rating" must be a number between 0 and 5');
+      });
 
+      it('responds with 400 invalid "url" if not a valid URL', () => {
+        const idToUpdate = 2;
+        const updateInvalidURL = {
+          url: 'htp://invalid-url'
+        }
+
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send(updateInvalidURL)
+          .expect(400, '"url" must be a valid URL');
+      });
     });
   });
 });

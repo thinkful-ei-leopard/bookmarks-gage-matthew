@@ -26,14 +26,14 @@ const BookmarksService = {
 
   deleteBookmark(knex, id) {
     return knex('bookmarks')
-      .where({ id })
+      .where('id', id)
       .delete();
   },
 
   updateBookmark(knex, id, newBookmarkFields) {
-    return knex('blogful_articles')
-      .where({ id })
-      .update(newBookmarkFields)
+    return knex('bookmarks')
+      .where('id', id)
+      .update(newBookmarkFields);
   }
 };
 

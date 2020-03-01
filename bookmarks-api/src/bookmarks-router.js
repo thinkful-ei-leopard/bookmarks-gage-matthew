@@ -82,7 +82,7 @@ bookmarksRouter
       .catch(next);
   })
   .get((req, res) => {
-    res.json(serializeBookmark(bookmark))
+    res.json(serializeBookmark(res.bookmark));
   })
   .delete((req, res, next) => {
     const { id } = req.params;
@@ -103,15 +103,31 @@ bookmarksRouter
     const { title, url, description, rating } = req.body;
     const bookmarkToUpdate = { title, url, description, rating};
     
+    const numberOfValues = Object.values(bookmarkToUpdate).filter(Boolean).length;
+    if(numberOfValues === 0) {
+      logger.error('Invalid update without required fields');
+      return res.status(400).send('Request body must contain either "title", "url", "description" or "rating"');
+    }
+
+    if(rating && (!Number.isInteger(rating) || rating < 0 || rating > 5)) {
+      logger.error(`Invalid rating '${rating}' supplied`);
+      res.status(400).send('"rating" must be a number between 0 and 5');
+    }
+
+    if(url && !isWebUri(url)) {
+      logger.error(`Invalid url '${url}' supplied`);
+      res.status(400).send('"url" must be a valid URL');
+    }
+
     BookmarksService.updateBookmark(
       req.app.get('db'),
-      req.params.bookmark_id,
+      req.params.id,
       bookmarkToUpdate
     )
       .then(numFieldsAffected => {
-        res.status(204).end()
+        res.status(204).end();
       })
-      .catch(next)
+      .catch(next);
   });
   
 module.exports = bookmarksRouter;
